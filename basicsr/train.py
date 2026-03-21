@@ -7,11 +7,15 @@ import sys
 import time
 import torch
 from os import path as osp
+import os
 
-sys.path.append('/home/cj/code/CLIPDenoising')
+PROJECT_ROOT = '/kaggle/working/denoising-project'
+if PROJECT_ROOT not in sys.path:
+    sys.path.append(PROJECT_ROOT)
+if osp.exists(PROJECT_ROOT):
+    os.chdir(PROJECT_ROOT)
 
 import numpy as np
-import os
 
 from basicsr.data import create_dataloader, create_dataset
 from basicsr.data.data_sampler import EnlargedSampler
@@ -24,7 +28,6 @@ from basicsr.utils import (MessageLogger, check_resume, get_env_info,
 from basicsr.utils.dist_util import get_dist_info, init_dist
 from basicsr.utils.options import dict2str, parse
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 def parse_options(is_train=True):
     parser = argparse.ArgumentParser()
     parser.add_argument(
