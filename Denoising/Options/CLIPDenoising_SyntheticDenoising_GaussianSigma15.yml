@@ -1,6 +1,6 @@
 # general settings # base arch without using the noisy input
 # name: CLIPDenoising_SyntheticDenoising_GaussianSigma15 # ORIGINAL
-name: CLIPDenoising_SyntheticDenoising_GaussianSigma15_10k
+name: CLIPDenoising_SyntheticDenoising_GaussianSigma15
 model_type: ImageCleanModel
 scale: 1
 num_gpu: 1  # set num_gpu: 0 for cpu mode
@@ -14,7 +14,7 @@ datasets:
     sigma_type: constant
     sigma_range: 15
     in_ch: 3    ## RGB image
-    dataroot_gt: /kaggle/input/<my-dataset-name>/CBSD432 ## CHANGE TO MY KAGGLE DATASET DIRECTORY (CBSD432)
+    dataroot_gt: /kaggle/input/bsd-dataset/CBSD432 ## CHANGE TO MY KAGGLE DATASET DIRECTORY (CBSD432)
     dataroot_lq: none
     geometric_augs: true
 
@@ -41,7 +41,7 @@ datasets:
     sigma_type: constant
     sigma_test: 50
     in_ch: 3  ## RGB image
-    dataroot_gt: /kaggle/input/<my-dataset-name>/CBSD68 ## CHANGE TO MY KAGGLE DATASET DIRECTORY (CBSD68)
+    dataroot_gt: /kaggle/input/bsd-dataset/CBSD68 ## CHANGE TO MY KAGGLE DATASET DIRECTORY (CBSD68)
     dataroot_lq: none
     io_backend:
       type: disk
@@ -55,7 +55,7 @@ network_g:
   wf: 64 
   num_blocks: [3, 4, 6, 3] 
   bias: false
-  model_path: /kaggle/input/<my-model-dataset>/RN50.pt ## CHANGE TO MY KAGGLE MODEL DIRECTORY
+  model_path: /kaggle/input/clip-pretrained/RN50.pt ## CHANGE TO MY KAGGLE MODEL DIRECTORY
 
   aug_level: 0.025
 
@@ -67,11 +67,11 @@ network_g:
 
 path:
   root: /kaggle/working/denoising-project
-  experiments_root: /kaggle/working/denoising-project/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15_10k
-  models: /kaggle/working/denoising-project/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15_10k/models
-  training_states: /kaggle/working/denoising-project/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15_10k/training_states
-  log: /kaggle/working/denoising-project/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15_10k
-  visualization: /kaggle/working/denoising-project/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15_10k/visualization
+  experiments_root: /kaggle/working/denoising-project/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15
+  models: /kaggle/working/denoising-project/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15/models
+  training_states: /kaggle/working/denoising-project/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15/training_states
+  log: /kaggle/working/denoising-project/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15
+  visualization: /kaggle/working/denoising-project/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15/visualization
   pretrain_network_g: ~
   strict_load_g: true
   resume_state: ~
