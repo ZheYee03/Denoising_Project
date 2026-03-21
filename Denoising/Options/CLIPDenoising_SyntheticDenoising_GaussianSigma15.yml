@@ -13,7 +13,7 @@ datasets:
     sigma_type: constant
     sigma_range: 15
     in_ch: 3    ## RGB image
-    dataroot_gt: /data0/cj/dataset/CBSD432
+    dataroot_gt: /content/drive/MyDrive/CLIPDenoising/BSD-432-68/CBSD432 ## CHANGE TO MY DATA DIRECTORY (CBSD432)
     dataroot_lq: none
     geometric_augs: true
 
@@ -23,13 +23,13 @@ datasets:
 
     # data loader
     use_shuffle: true
-    num_worker_per_gpu: 8
-    batch_size_per_gpu: 16
+    num_worker_per_gpu: 2   # ORIGINAL: 8
+    batch_size_per_gpu: 4   # ORIGINAL: 16
 
-    mini_batch_sizes: [16]   
-    iters: [300000]
-    gt_size: 128   
-    gt_sizes: [128]
+    mini_batch_sizes: [4]   # ORIGINAL: 16 
+    iters: [2000]           # ORIGINAL: 300000
+    gt_size: 64             # ORIGINAL: 128
+    gt_sizes: [64]          # ORIGINAL: 128
 
     dataset_enlarge_ratio: 1
     prefetch_mode: ~
@@ -40,7 +40,8 @@ datasets:
     sigma_type: constant
     sigma_test: 50
     in_ch: 3  ## RGB image
-    dataroot_gt: /data0/cj/dataset/CBSD68
+    dataroot_gt: /content/drive/MyDrive/CLIPDenoising/BSD-432-68/CBSD68 ## CHANGE TO MY DATA DIRECTORY (CBSD68)
+    dataroot_lq: none
     dataroot_lq: none
     io_backend:
       type: disk
@@ -54,7 +55,7 @@ network_g:
   wf: 64 
   num_blocks: [3, 4, 6, 3] 
   bias: false
-  model_path: /data0/cj/model_data/ldm/stable-diffusion/RN50.pt
+  model_path: /content/drive/MyDrive/CLIPDenoising/pretrained/RN50.pt ## CHANGE TO MY .pt DIRECTORY 
 
   aug_level: 0.025
 
@@ -66,18 +67,18 @@ path:
 
 # training settings
 train:
-  total_iter: 300000
+  total_iter: 2000      # ORIGINAL: 300000
   warmup_iter: -1 # no warm up
   use_grad_clip: true
 
   scheduler:
     type: CosineAnnealingRestartCyclicLR
-    periods: [92000, 208000]       
+    periods: [600, 1400]    # ORIGINAL: [92000, 208000]    
     restart_weights: [1,1]
     eta_mins: [0.0003,0.000001]   
   
   mixing_augs:
-    mixup: true
+    mixup: false  # ORIGINAL: true
     mixup_beta: 1.2
     use_identity: true
 
@@ -96,7 +97,7 @@ train:
 # validation settings
 val:
   window_size: 32
-  val_freq: !!float 4e3
+  val_freq: 500    # ORIGINAL: !!float 4e3
   save_img: false
   rgb2bgr: true
   use_image: false
@@ -110,8 +111,8 @@ val:
 
 # logging settings
 logger:
-  print_freq: 1000
-  save_checkpoint_freq: !!float 1e5
+  print_freq: 50 # ORIGINAL: 1000
+  save_checkpoint_freq: 500 # ORIGINAL: !!float 1e5
   use_tb_logger: false
   wandb:
     project: ~
