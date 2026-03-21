@@ -1,5 +1,4 @@
 # general settings # base arch without using the noisy input
-# name: CLIPDenoising_SyntheticDenoising_GaussianSigma15 # ORIGINAL
 name: CLIPDenoising_SyntheticDenoising_GaussianSigma15
 model_type: ImageCleanModel
 scale: 1
@@ -24,13 +23,13 @@ datasets:
 
     # data loader
     use_shuffle: true
-    num_worker_per_gpu: 2   # ORIGINAL: 8
-    batch_size_per_gpu: 4   # ORIGINAL: 16
+    num_worker_per_gpu: 8   # ORIGINAL: 8
+    batch_size_per_gpu: 16   # ORIGINAL: 16
 
-    mini_batch_sizes: [4]   # ORIGINAL: 16 
-    iters: [10000]           # ORIGINAL: 300000
-    gt_size: 64             # ORIGINAL: 128
-    gt_sizes: [64]          # ORIGINAL: 128
+    mini_batch_sizes: [16]   # ORIGINAL: 16 
+    iters: [300000]           # ORIGINAL: 300000
+    gt_size: 128             # ORIGINAL: 128
+    gt_sizes: [128]          # ORIGINAL: 128
 
     dataset_enlarge_ratio: 1
     prefetch_mode: ~
@@ -78,18 +77,18 @@ path:
 
 # training settings
 train:
-  total_iter: 10000      # ORIGINAL: 300000
+  total_iter: 300000      # ORIGINAL: 300000
   warmup_iter: -1 # no warm up
   use_grad_clip: true
 
   scheduler:
     type: CosineAnnealingRestartCyclicLR
-    periods: [3000, 7000]    # ORIGINAL: [92000, 208000]    
+    periods: [92000, 208000]    # ORIGINAL: [92000, 208000]    
     restart_weights: [1,1]
     eta_mins: [0.0003,0.000001]   
   
   mixing_augs:
-    mixup: false  # ORIGINAL: true
+    mixup: true  # ORIGINAL: true
     mixup_beta: 1.2
     use_identity: true
 
@@ -108,7 +107,7 @@ train:
 # validation settings
 val:
   window_size: 32
-  val_freq: 1000    # ORIGINAL: !!float 4e3
+  val_freq: !!float 4e3    # ORIGINAL: !!float 4e3
   save_img: false
   rgb2bgr: true
   use_image: false
@@ -122,8 +121,8 @@ val:
 
 # logging settings
 logger:
-  print_freq: 50 # ORIGINAL: 1000
-  save_checkpoint_freq: 1000 # ORIGINAL: !!float 1e5
+  print_freq: 2500 # ORIGINAL: 1000
+  save_checkpoint_freq: !!float 1e5 # ORIGINAL: !!float 1e5
   use_tb_logger: false
   wandb:
     project: ~
