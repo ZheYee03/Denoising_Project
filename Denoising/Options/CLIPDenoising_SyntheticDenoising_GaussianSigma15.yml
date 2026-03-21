@@ -14,7 +14,7 @@ datasets:
     sigma_type: constant
     sigma_range: 15
     in_ch: 3    ## RGB image
-    dataroot_gt: /kaggle/input/bsd-dataset/CBSD432 ## CHANGE TO MY KAGGLE DATASET DIRECTORY (CBSD432)
+    dataroot_gt: /kaggle/input/datasets/tzyee03/bsd-dataset/bsd-dataset/CBSD432
     dataroot_lq: none
     geometric_augs: true
 
@@ -41,7 +41,7 @@ datasets:
     sigma_type: constant
     sigma_test: 50
     in_ch: 3  ## RGB image
-    dataroot_gt: /kaggle/input/bsd-dataset/CBSD68 ## CHANGE TO MY KAGGLE DATASET DIRECTORY (CBSD68)
+    dataroot_gt: /kaggle/input/datasets/tzyee03/bsd-dataset/bsd-dataset/CBSD68
     dataroot_lq: none
     io_backend:
       type: disk
@@ -55,7 +55,7 @@ network_g:
   wf: 64 
   num_blocks: [3, 4, 6, 3] 
   bias: false
-  model_path: /kaggle/input/clip-pretrained/RN50.pt ## CHANGE TO MY KAGGLE MODEL DIRECTORY
+  model_path: /kaggle/input/datasets/tzyee03/clip-pretrained/RN50.pt
 
   aug_level: 0.025
 
