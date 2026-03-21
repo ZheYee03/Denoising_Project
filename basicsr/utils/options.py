@@ -61,18 +61,25 @@ def parse(opt_path, is_train=True):
         if (val is not None) and ('resume_state' in key
                                   or 'pretrain_network' in key):
             opt['path'][key] = osp.expanduser(val)
-    opt['path']['root'] = '/data0/cj/model_data/CLIP_Denoising' # osp.abspath(
-        # osp.join(__file__, osp.pardir, osp.pardir, osp.pardir))
+
+    def _set_default_path(key, value):
+        if opt['path'].get(key) is None:
+            opt['path'][key] = value
+        return opt['path'][key]
+
+    root = _set_default_path(
+        'root',
+        osp.abspath(osp.join(__file__, osp.pardir, osp.pardir, osp.pardir)))
     if is_train:
-        experiments_root = osp.join(opt['path']['root'], 'experiments_refine',
-                                    opt['name'])
-        opt['path']['experiments_root'] = experiments_root
-        opt['path']['models'] = osp.join(experiments_root, 'models')
-        opt['path']['training_states'] = osp.join(experiments_root,
-                                                  'training_states')
-        opt['path']['log'] = experiments_root
-        opt['path']['visualization'] = osp.join(experiments_root,
-                                                'visualization')
+        experiments_root = _set_default_path(
+            'experiments_root',
+            osp.join(root, 'experiments_refine', opt['name']))
+        _set_default_path('models', osp.join(experiments_root, 'models'))
+        _set_default_path('training_states',
+                          osp.join(experiments_root, 'training_states'))
+        _set_default_path('log', experiments_root)
+        _set_default_path('visualization',
+                          osp.join(experiments_root, 'visualization'))
 
         # change some options for debug mode
         if 'debug' in opt['name']:
@@ -81,10 +88,11 @@ def parse(opt_path, is_train=True):
             opt['logger']['print_freq'] = 1
             opt['logger']['save_checkpoint_freq'] = 8
     else:  # test
-        results_root = osp.join(opt['path']['root'], 'results', opt['name'])
-        opt['path']['results_root'] = results_root
-        opt['path']['log'] = results_root
-        opt['path']['visualization'] = osp.join(results_root, 'visualization')
+        results_root = _set_default_path(
+            'results_root', osp.join(root, 'results', opt['name']))
+        _set_default_path('log', results_root)
+        _set_default_path('visualization',
+                          osp.join(results_root, 'visualization'))
 
     return opt
 
