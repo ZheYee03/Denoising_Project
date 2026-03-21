@@ -23,7 +23,7 @@ datasets:
 
     # data loader
     use_shuffle: true
-    num_worker_per_gpu: 8   # ORIGINAL: 8
+    num_worker_per_gpu: 4   # ORIGINAL: 8
     batch_size_per_gpu: 16   # ORIGINAL: 16
 
     mini_batch_sizes: [16]   # ORIGINAL: 16 
