@@ -42,7 +42,6 @@ datasets:
     in_ch: 3  ## RGB image
     dataroot_gt: /content/drive/MyDrive/CLIPDenoising/BSD-432-68/CBSD68 ## CHANGE TO MY DATA DIRECTORY (CBSD68)
     dataroot_lq: none
-    dataroot_lq: none
     io_backend:
       type: disk
 
@@ -59,8 +58,19 @@ network_g:
 
   aug_level: 0.025
 
-# path
+# path (ORIGINAL)
+# path:
+#   pretrain_network_g: ~
+#   strict_load_g: true
+#   resume_state: ~
+
 path:
+  root: /content/drive/MyDrive/CLIPDenoising
+  experiments_root: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15
+  models: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15/models
+  training_states: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15/training_states
+  log: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15
+  visualization: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15/visualization
   pretrain_network_g: ~
   strict_load_g: true
   resume_state: ~

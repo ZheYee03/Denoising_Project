@@ -141,8 +141,12 @@ def main():
 
     # automatic resume ..
     # RN50 CLIP
-    state_folder_path = '/data0/cj/model_data/CLIP_Denoising/experiments_refine/{}/training_states/'.format(opt['name'])
+
+    # ORIGINAL
+    # state_folder_path = '/data0/cj/model_data/CLIP_Denoising/experiments_refine/{}/training_states/'.format(opt['name'])
     
+    state_folder_path = opt['path']['training_states']
+
     import os
     try:
         states = os.listdir(state_folder_path)
