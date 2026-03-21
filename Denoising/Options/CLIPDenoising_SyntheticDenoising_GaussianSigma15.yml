@@ -55,7 +55,7 @@ network_g:
   wf: 64 
   num_blocks: [3, 4, 6, 3] 
   bias: false
-  model_path: /kaggle/input/datasets/tzyee03/clip-pretrained/RN50.pt
+  model_path: /kaggle/working/RN50.pt
 
   aug_level: 0.025
 
