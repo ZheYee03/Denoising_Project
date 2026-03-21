@@ -67,11 +67,11 @@ network_g:
 
 path:
   root: /content/drive/MyDrive/CLIPDenoising
-  experiments_root: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15
-  models: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15/models
-  training_states: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15/training_states
-  log: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15
-  visualization: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15/visualization
+  experiments_root: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15_10k
+  models: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15_10k/models
+  training_states: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15_10k/training_states
+  log: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15_10k
+  visualization: /content/drive/MyDrive/CLIPDenoising/experiments/CLIPDenoising_SyntheticDenoising_GaussianSigma15_10k/visualization
   pretrain_network_g: ~
   strict_load_g: true
   resume_state: ~
@@ -84,7 +84,7 @@ train:
 
   scheduler:
     type: CosineAnnealingRestartCyclicLR
-    periods: [600, 1400]    # ORIGINAL: [92000, 208000]    
+    periods: [3000, 7000]    # ORIGINAL: [92000, 208000]    
     restart_weights: [1,1]
     eta_mins: [0.0003,0.000001]   
   
