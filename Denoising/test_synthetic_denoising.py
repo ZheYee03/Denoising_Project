@@ -1,114 +1,285 @@
 import argparse
-import numpy as np
 import os
 import sys
+from glob import glob
+from pathlib import Path
+from types import ModuleType
 
-sys.path.append('/home/cj/code/CLIPDenoising')
+import numpy as np
 import torch
 import torch.nn.functional as F
-import utils
-from glob import glob
 from scipy.ndimage import convolve
 from tqdm import tqdm
 
-from basicsr.models.archs.CLIPDenoising_arch import CLIPDenoising
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+# Some Kaggle environments do not ship with lmdb, but the test path only needs
+# the network definition, not LMDB utilities.
+try:
+    import lmdb  # noqa: F401
+except ImportError:
+    sys.modules['lmdb'] = ModuleType('lmdb')
+
+import utils
+from basicsr.models.archs.CLIPDenoising_arch import CLIPDenoising
+from basicsr.models.archs.CLIPEncoder_util import ModifiedResNet
+
+DEFAULT_INPUT_DIR = '/kaggle/input/datasets/leongxinying/bsd-dataset/bsd-dataset'
+DEFAULT_DATASET_DIR = '/kaggle/input/datasets/leongxinying/bsd-dataset/bsd-dataset/CBSD68'
+DEFAULT_CHECKPOINT_PATH = (
+    '/kaggle/input/datasets/leongxinying/pretrained-syntheticdenoising/'
+    'CLIPDenoising_SyntheticDenoising_GaussianSigma15/models/net_g_300000.pth'
+)
 
 parser = argparse.ArgumentParser(description='Synthetic Color Denoising')
-
-parser.add_argument('--input_dir', default='/data0/cj/dataset', type=str, help='Directory of validation images')
+parser.add_argument(
+    '--input_dir',
+    default=DEFAULT_INPUT_DIR,
+    type=str,
+    help='Directory containing the CBSD68 validation images or its parent folder.',
+)
+parser.add_argument(
+    '--clip_model_path',
+    default=None,
+    type=str,
+    help='Optional path to RN50.pt. If omitted, the script tries a few relative paths.',
+)
 
 args = parser.parse_args()
 
-def proc(tar_img, prd_img):        
-    PSNR = utils.calculate_psnr(tar_img, prd_img)
-    SSIM = utils.calculate_ssim(tar_img, prd_img)
-    return PSNR, SSIM
 
-# network arch
-'''
-type: CLIPDenoising
-inp_channels: 3
-out_channels: 3
-depth: 5
-wf: 64 
-num_blocks: [3, 4, 6, 3] 
-bias: false
-model_path: /data0/cj/model_data/ldm/stable-diffusion/RN50.pt
+def proc(tar_img, prd_img):
+    psnr = utils.calculate_psnr(tar_img, prd_img)
+    ssim = utils.calculate_ssim(tar_img, prd_img)
+    return psnr, ssim
 
-aug_level: 0.025
-'''
 
-model_restoration = CLIPDenoising(inp_channels=3, out_channels=3, depth=5, wf=64, num_blocks=[3,4,6,3], bias=False,
-                                  model_path='/data0/cj/model_data/ldm/stable-diffusion/RN50.pt', aug_level=0.025)
-checkpoint = torch.load('./Denoising/pretrained_models/synthetic/net_g_latest.pth')
-load_result = model_restoration.load_state_dict(checkpoint['params'])
+def resolve_clip_model_path(cli_path):
+    if cli_path:
+        candidate_paths = [Path(cli_path)]
+    else:
+        env_clip_path = os.environ.get('CLIP_MODEL_PATH')
+        candidate_paths = []
+        if env_clip_path:
+            candidate_paths.append(Path(env_clip_path))
+        candidate_paths.extend([
+            PROJECT_ROOT / 'RN50.pt',
+            SCRIPT_DIR / 'RN50.pt',
+            Path.cwd() / 'RN50.pt',
+        ])
 
-model_restoration.cuda()
-model_restoration.eval()
-##########################
+    for candidate in candidate_paths:
+        if candidate and candidate.is_file():
+            print(f'Using CLIP encoder weights from: {candidate}')
+            return str(candidate)
 
-factor = 32
+    print(
+        'CLIP RN50 weights were not found. Proceeding without loading a local '
+        'RN50.pt file. If needed, set --clip_model_path or CLIP_MODEL_PATH.'
+    )
+    return None
 
-datasets = ['CBSD68', 'McM', 'Kodak', 'Urban100'] 
-noise_types = ['gauss', 'spatial_gauss', 'poisson'] 
 
-for dataset in datasets:
-    for noise_type in noise_types:
+_original_load_pretrain_model = ModifiedResNet.load_pretrain_model
 
-        if noise_type == 'gauss':
-            sigmas = [15, 25, 50]
-        elif noise_type == 'poisson':
-            sigmas = [2, 2.5, 3, 3.5]
-        elif noise_type == 'spatial_gauss':
-            sigmas = [40, 45, 50, 55]
 
-        
-        for sigma_test in sigmas:
-            psnr_list = []; ssim_list = []
-            inp_dir = os.path.join(args.input_dir, dataset)
-            files = glob(os.path.join(inp_dir, '*.png')) + glob(os.path.join(inp_dir, '*.tif'))
+def _safe_load_pretrain_model(self, model_path):
+    if not model_path:
+        return
+    if not Path(model_path).is_file():
+        print(
+            f'CLIP model path not found: {model_path}. '
+            'Proceeding without encoder pretrain loading.'
+        )
+        return
+    _original_load_pretrain_model(self, model_path)
 
-            with torch.no_grad():
-                for file_ in tqdm(files):
-                    img_clean = np.float32(utils.load_img(file_))/255.
 
-                    np.random.seed(seed=0)  # for reproducibility
+ModifiedResNet.load_pretrain_model = _safe_load_pretrain_model
 
-                    # gaussian noise
-                    if noise_type == 'gauss':
-                        img = img_clean + np.random.normal(0, sigma_test/255., img_clean.shape)
 
-                    # poisson noise
-                    elif noise_type == 'poisson':
-                        img = utils.add_poisson_noise(img_clean, scale=sigma_test)
+def resolve_dataset_dir(input_dir, dataset_name):
+    input_path = Path(input_dir)
+    candidate_dirs = [
+        input_path / dataset_name,
+        input_path,
+        Path(DEFAULT_DATASET_DIR),
+    ]
 
-                    elif noise_type == 'spatial_gauss':
-                        noise = np.random.normal(0, sigma_test/255., img_clean.shape)
-                        kernel = np.ones((3,3))/9.0
-                        for chn in range(img_clean.shape[-1]):
-                            noise[...,chn] = convolve(noise[...,chn], kernel)
+    for candidate in candidate_dirs:
+        if candidate.is_dir():
+            files = sorted(glob(str(candidate / '*.png'))) + sorted(glob(str(candidate / '*.tif')))
+            if files:
+                return candidate, files
 
-                        img = img_clean + noise
+    for candidate in candidate_dirs:
+        if candidate.is_dir():
+            files = sorted(glob(str(candidate / '*.png'))) + sorted(glob(str(candidate / '*.tif')))
+            return candidate, files
 
-                    img = torch.from_numpy(img).permute(2,0,1).float()
-                    input_ = img.unsqueeze(0).cuda()
+    return candidate_dirs[0], []
 
-                    # Padding in case images are not multiples of 8
-                    h,w = input_.shape[2], input_.shape[3]
-                    H,W = ((h+factor)//factor)*factor, ((w+factor)//factor)*factor
-                    padh = H-h if h%factor!=0 else 0
-                    padw = W-w if w%factor!=0 else 0
-                    input_ = F.pad(input_, (0,padw,0,padh), 'reflect')
 
-                    restored = model_restoration(input_)
-                    restored = restored[:,:,:h,:w]
+def load_checkpoint_state_dict(checkpoint_path):
+    checkpoint = torch.load(checkpoint_path, map_location='cpu')
+    if isinstance(checkpoint, dict):
+        if 'params' in checkpoint:
+            return checkpoint['params']
+        if 'state_dict' in checkpoint:
+            return checkpoint['state_dict']
+    return checkpoint
 
-                    restored = torch.clamp(restored,0,1).cpu().detach().permute(0, 2, 3, 1).squeeze(0).numpy()
-                    psnr, ssim = proc(img_clean*255.0, restored*255.0)
 
-                    psnr_list.append(psnr); ssim_list.append(ssim)
+def main():
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'Using device: {device}')
 
-            print('noise_type:{}, dataset:{}, sigma:{}, psnr:{:.2f}, ssim:{:.3f}'.format(noise_type, dataset, sigma_test, 
-                                    sum(psnr_list)/len(psnr_list), sum(ssim_list)/len(ssim_list)))
+    clip_model_path = resolve_clip_model_path(args.clip_model_path)
+
+    # network arch
+    '''
+    type: CLIPDenoising
+    inp_channels: 3
+    out_channels: 3
+    depth: 5
+    wf: 64
+    num_blocks: [3, 4, 6, 3]
+    bias: false
+    model_path: RN50.pt  # Optional. Set --clip_model_path or CLIP_MODEL_PATH if available.
+
+    aug_level: 0.025
+    '''
+
+    model_restoration = CLIPDenoising(
+        inp_channels=3,
+        out_channels=3,
+        depth=5,
+        wf=64,
+        num_blocks=[3, 4, 6, 3],
+        bias=False,
+        model_path=clip_model_path,
+        aug_level=0.025,
+    )
+
+    checkpoint_path = Path(DEFAULT_CHECKPOINT_PATH)
+    if not checkpoint_path.is_file():
+        print(f'Checkpoint not found: {checkpoint_path}')
+        return
+
+    state_dict = load_checkpoint_state_dict(str(checkpoint_path))
+    load_result = model_restoration.load_state_dict(state_dict, strict=True)
+    print(f'Checkpoint loaded from: {checkpoint_path}')
+    print(load_result)
+
+    model_restoration.to(device)
+    model_restoration.eval()
+
+    factor = 32
+
+    datasets = ['CBSD68']
+    # datasets = ['McM', 'Kodak', 'Urban100']
+    noise_types = ['gauss', 'spatial_gauss', 'poisson']
+
+    for dataset in datasets:
+        inp_dir, files = resolve_dataset_dir(args.input_dir, dataset)
+        print(f'Dataset path: {inp_dir}')
+        print(f'Number of images found: {len(files)}')
+
+        if not files:
+            print(f'No images found for dataset {dataset}. Skipping.')
+            continue
+
+        for noise_type in noise_types:
+            if noise_type == 'gauss':
+                sigmas = [15, 25, 50]
+            elif noise_type == 'poisson':
+                sigmas = [2, 2.5, 3, 3.5]
+            elif noise_type == 'spatial_gauss':
+                sigmas = [40, 45, 50, 55]
+            else:
+                continue
+
+            for sigma_test in sigmas:
+                psnr_list = []
+                ssim_list = []
+
+                with torch.no_grad():
+                    for file_ in tqdm(files, desc=f'{dataset}-{noise_type}-{sigma_test}'):
+                        try:
+                            img_clean = np.float32(utils.load_img(file_)) / 255.0
+                        except Exception as exc:
+                            print(f'Unable to read image, skipping: {file_}')
+                            print(f'Read error: {exc}')
+                            continue
+
+                        np.random.seed(seed=0)  # for reproducibility
+
+                        # gaussian noise
+                        if noise_type == 'gauss':
+                            img = img_clean + np.random.normal(
+                                0, sigma_test / 255.0, img_clean.shape
+                            )
+
+                        # poisson noise
+                        elif noise_type == 'poisson':
+                            img = utils.add_poisson_noise(img_clean, scale=sigma_test)
+
+                        elif noise_type == 'spatial_gauss':
+                            noise = np.random.normal(0, sigma_test / 255.0, img_clean.shape)
+                            kernel = np.ones((3, 3)) / 9.0
+                            for chn in range(img_clean.shape[-1]):
+                                noise[..., chn] = convolve(noise[..., chn], kernel)
+
+                            img = img_clean + noise
+
+                        img = torch.from_numpy(img).permute(2, 0, 1).float()
+                        input_ = img.unsqueeze(0).to(device)
+
+                        h, w = input_.shape[2], input_.shape[3]
+                        H, W = ((h + factor) // factor) * factor, ((w + factor) // factor) * factor
+                        padh = H - h if h % factor != 0 else 0
+                        padw = W - w if w % factor != 0 else 0
+                        input_ = F.pad(input_, (0, padw, 0, padh), 'reflect')
+
+                        restored = model_restoration(input_)
+                        restored = restored[:, :, :h, :w]
+
+                        restored = (
+                            torch.clamp(restored, 0, 1)
+                            .cpu()
+                            .detach()
+                            .permute(0, 2, 3, 1)
+                            .squeeze(0)
+                            .numpy()
+                        )
+                        psnr, ssim = proc(img_clean * 255.0, restored * 255.0)
+
+                        psnr_list.append(psnr)
+                        ssim_list.append(ssim)
+
+                if not psnr_list:
+                    print(
+                        f'noise_type:{noise_type}, dataset:{dataset}, sigma:{sigma_test}, '
+                        'no valid images were processed.'
+                    )
+                    continue
+
+                print(
+                    'noise_type:{}, dataset:{}, sigma:{}, psnr:{:.2f}, ssim:{:.3f}'.format(
+                        noise_type,
+                        dataset,
+                        sigma_test,
+                        sum(psnr_list) / len(psnr_list),
+                        sum(ssim_list) / len(ssim_list),
+                    )
+                )
+
+
+if __name__ == '__main__':
+    main()
