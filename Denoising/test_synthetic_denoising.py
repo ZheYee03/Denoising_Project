@@ -30,8 +30,13 @@ import utils
 from basicsr.models.archs.CLIPDenoising_arch import CLIPDenoising
 from basicsr.models.archs.CLIPEncoder_util import ModifiedResNet
 
-DEFAULT_INPUT_DIR = '/kaggle/input/datasets/leongxinying/bsd-dataset/bsd-dataset'
-DEFAULT_DATASET_DIR = '/kaggle/input/datasets/leongxinying/bsd-dataset/bsd-dataset/CBSD68'
+DEFAULT_INPUT_DIR = '/kaggle/input/datasets/leongxinying/data-clipdenoise'
+DATASET_PATHS = {
+    'CBSD68': '/kaggle/input/datasets/leongxinying/data-clipdenoise/cbsd68/cbsd68',
+    'McM': '/kaggle/input/datasets/leongxinying/data-clipdenoise/McM/McM',
+    'Kodak24': '/kaggle/input/datasets/leongxinying/data-clipdenoise/kodak24/kodak24',
+    'Urban100': '/kaggle/input/datasets/leongxinying/data-clipdenoise/urban100/urban100',
+}
 DEFAULT_CHECKPOINT_PATH = (
     '/kaggle/input/datasets/leongxinying/pretrained-syntheticdenoising/'
     'CLIPDenoising_SyntheticDenoising_GaussianSigma15/models/net_g_300000.pth'
@@ -43,7 +48,7 @@ parser.add_argument(
     '--input_dir',
     default=DEFAULT_INPUT_DIR,
     type=str,
-    help='Directory containing the CBSD68 validation images or its parent folder.',
+    help='Fallback directory containing validation datasets when a dataset is not in DATASET_PATHS.',
 )
 parser.add_argument(
     '--clip_model_path',
@@ -95,11 +100,17 @@ ModifiedResNet.load_pretrain_model = _safe_load_pretrain_model
 
 
 def resolve_dataset_dir(input_dir, dataset_name):
+    mapped_dir = DATASET_PATHS.get(dataset_name)
+    if mapped_dir is not None:
+        mapped_path = Path(mapped_dir)
+        if mapped_path.is_dir():
+            return mapped_path, collect_image_files(mapped_path)
+        return mapped_path, []
+
     input_path = Path(input_dir)
     candidate_dirs = [
         input_path / dataset_name,
         input_path,
-        Path(DEFAULT_DATASET_DIR),
     ]
 
     for candidate in candidate_dirs:
@@ -149,7 +160,7 @@ def main():
     wf: 64
     num_blocks: [3, 4, 6, 3]
     bias: false
-    model_path: RN50.pt  # Optional. Set --clip_model_path or CLIP_MODEL_PATH if available.
+    model_path: /kaggle/working/RN50.pt
 
     aug_level: 0.025
     '''
@@ -180,17 +191,21 @@ def main():
 
     factor = 32
 
-    datasets = ['CBSD68']
-    # datasets = ['McM', 'Kodak', 'Urban100']
+    datasets = ['CBSD68', 'McM', 'Kodak24', 'Urban100']
     noise_types = ['gauss', 'spatial_gauss', 'poisson']
 
     for dataset in datasets:
         inp_dir, files = resolve_dataset_dir(args.input_dir, dataset)
+        print(f'Dataset name: {dataset}')
         print(f'Dataset path: {inp_dir}')
         print(f'Number of images found: {len(files)}')
         print('First 5 file paths found:')
         for file_path in files[:5]:
             print(file_path)
+
+        if not inp_dir.is_dir():
+            print(f'Dataset folder does not exist for {dataset}: {inp_dir}. Skipping.')
+            continue
 
         if not files:
             print(f'No images found for dataset {dataset}. Skipping.')
