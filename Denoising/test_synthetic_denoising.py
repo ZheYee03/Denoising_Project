@@ -36,6 +36,7 @@ DEFAULT_CHECKPOINT_PATH = (
     '/kaggle/input/datasets/leongxinying/pretrained-syntheticdenoising/'
     'CLIPDenoising_SyntheticDenoising_GaussianSigma15/models/net_g_300000.pth'
 )
+DEFAULT_CLIP_MODEL_PATH = '/kaggle/working/RN50.pt'
 
 parser = argparse.ArgumentParser(description='Synthetic Color Denoising')
 parser.add_argument(
@@ -46,9 +47,9 @@ parser.add_argument(
 )
 parser.add_argument(
     '--clip_model_path',
-    default=None,
+    default=DEFAULT_CLIP_MODEL_PATH,
     type=str,
-    help='Optional path to RN50.pt. If omitted, the script tries a few relative paths.',
+    help='Path to RN50.pt.',
 )
 
 args = parser.parse_args()
@@ -61,18 +62,7 @@ def proc(tar_img, prd_img):
 
 
 def resolve_clip_model_path(cli_path):
-    if cli_path:
-        candidate_paths = [Path(cli_path)]
-    else:
-        env_clip_path = os.environ.get('CLIP_MODEL_PATH')
-        candidate_paths = []
-        if env_clip_path:
-            candidate_paths.append(Path(env_clip_path))
-        candidate_paths.extend([
-            PROJECT_ROOT / 'RN50.pt',
-            SCRIPT_DIR / 'RN50.pt',
-            Path.cwd() / 'RN50.pt',
-        ])
+    candidate_paths = [Path(cli_path)]
 
     for candidate in candidate_paths:
         if candidate and candidate.is_file():
@@ -80,8 +70,8 @@ def resolve_clip_model_path(cli_path):
             return str(candidate)
 
     print(
-        'CLIP RN50 weights were not found. Proceeding without loading a local '
-        'RN50.pt file. If needed, set --clip_model_path or CLIP_MODEL_PATH.'
+        'CLIP RN50 weights were not found at '
+        f'{cli_path}. Proceeding without loading a local RN50.pt file.'
     )
     return None
 
@@ -114,16 +104,24 @@ def resolve_dataset_dir(input_dir, dataset_name):
 
     for candidate in candidate_dirs:
         if candidate.is_dir():
-            files = sorted(glob(str(candidate / '*.png'))) + sorted(glob(str(candidate / '*.tif')))
+            files = collect_image_files(candidate)
             if files:
                 return candidate, files
 
     for candidate in candidate_dirs:
         if candidate.is_dir():
-            files = sorted(glob(str(candidate / '*.png'))) + sorted(glob(str(candidate / '*.tif')))
+            files = collect_image_files(candidate)
             return candidate, files
 
     return candidate_dirs[0], []
+
+
+def collect_image_files(folder):
+    patterns = ['*.png', '*.tif', '*.jpg', '*.jpeg']
+    files = []
+    for pattern in patterns:
+        files.extend(sorted(glob(str(folder / pattern))))
+    return files
 
 
 def load_checkpoint_state_dict(checkpoint_path):
@@ -190,6 +188,9 @@ def main():
         inp_dir, files = resolve_dataset_dir(args.input_dir, dataset)
         print(f'Dataset path: {inp_dir}')
         print(f'Number of images found: {len(files)}')
+        print('First 5 file paths found:')
+        for file_path in files[:5]:
+            print(file_path)
 
         if not files:
             print(f'No images found for dataset {dataset}. Skipping.')
