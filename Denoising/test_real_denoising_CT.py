@@ -31,12 +31,12 @@ from basicsr.metrics.CT_psnr_ssim import compute_PSNR, compute_SSIM
 
 DEFAULT_INPUT_DIR = '/kaggle/input/datasets/leongxinying/ldct-dataset/LDCT_npy'
 DEFAULT_CHECKPOINT_PATH = (
-    '/kaggle/input/datasets/leongxinying/pretrained-syntheticdenoising/'
-    'CLIPDenoising_SyntheticDenoising_GaussianSigma15/models/net_g_300000.pth'
+    '/kaggle/input/datasets/leongxinying/pretrained-ldctdenoising/'
+    'CLIPDenoising_LDCTDenoising_GaussianSigma5/models/net_g_latest.pth'
 )
 DEFAULT_CLIP_MODEL_PATH = '/kaggle/working/RN50.pt'
 
-parser = argparse.ArgumentParser(description='Standalone LDCT zero-shot evaluation')
+parser = argparse.ArgumentParser(description='Standalone LDCT evaluation')
 parser.add_argument(
     '--input_dir',
     default=DEFAULT_INPUT_DIR,
@@ -47,7 +47,7 @@ parser.add_argument(
     '--checkpoint_path',
     default=DEFAULT_CHECKPOINT_PATH,
     type=str,
-    help='Path to the synthetic denoising checkpoint.',
+    help='Path to the LDCT-trained checkpoint.',
 )
 parser.add_argument(
     '--clip_model_path',
@@ -59,16 +59,6 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-def load_checkpoint_state_dict(checkpoint_path):
-    checkpoint = torch.load(checkpoint_path, map_location='cpu')
-    if isinstance(checkpoint, dict):
-        if 'params' in checkpoint:
-            return checkpoint['params']
-        if 'state_dict' in checkpoint:
-            return checkpoint['state_dict']
-    return checkpoint
-
-
 def proc(tar_img, prd_img):
     PSNR = utils.calculate_psnr(tar_img, prd_img)
     SSIM = utils.calculate_ssim(tar_img, prd_img)
@@ -77,8 +67,8 @@ def proc(tar_img, prd_img):
 # network arch
 '''
 type: CLIPDenoising
-inp_channels: 3
-out_channels: 3
+inp_channels: 1
+out_channels: 1
 depth: 5
 wf: 64 
 num_blocks: [3, 4, 6, 3] 
@@ -90,12 +80,9 @@ aug_level: 0.025
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# Build the native synthetic-denoising RGB model so the checkpoint can load
-# exactly, then bridge CT slices by repeating 1-channel input to RGB and
-# averaging the 3-channel prediction back to 1 channel for CT metrics.
 model_restoration = CLIPDenoising(
-    inp_channels=3,
-    out_channels=3,
+    inp_channels=1,
+    out_channels=1,
     depth=5,
     wf=64,
     num_blocks=[3, 4, 6, 3],
@@ -103,11 +90,11 @@ model_restoration = CLIPDenoising(
     model_path=args.clip_model_path,
     aug_level=0.025,
 )
-state_dict = load_checkpoint_state_dict(args.checkpoint_path)
-load_result = model_restoration.load_state_dict(state_dict, strict=True)
+checkpoint = torch.load(args.checkpoint_path, map_location='cpu')
+load_result = model_restoration.load_state_dict(checkpoint['params'])
 print(f'Using device: {device}')
 print(f'Loaded CLIP encoder weights from: {args.clip_model_path}')
-print(f'Loaded synthetic checkpoint from: {args.checkpoint_path}')
+print(f'Loaded LDCT checkpoint from: {args.checkpoint_path}')
 print(load_result)
 
 model_restoration.to(device)
@@ -152,27 +139,22 @@ for noise, clean in tqdm(zip(input_, target_)):
         img = torch.from_numpy(img).permute(2,0,1)
         input_ = img.unsqueeze(0).float().to(device)
 
-        # Repeat grayscale CT input to 3 channels to match the RGB synthetic
-        # checkpoint architecture.
-        input_rgb = input_.repeat(1, 3, 1, 1)
-
         # Padding in case images are not multiples of 32
-        h,w = input_rgb.shape[2], input_rgb.shape[3]
+        h,w = input_.shape[2], input_.shape[3]
         H,W = ((h+factor)//factor)*factor, ((w+factor)//factor)*factor
         padh = H-h if h%factor!=0 else 0
         padw = W-w if w%factor!=0 else 0
-        input_rgb = F.pad(input_rgb, (0,padw,0,padh), 'reflect')
+        input_ = F.pad(input_, (0,padw,0,padh), 'reflect')
 
-        restored = model_restoration(input_rgb)
+        restored = model_restoration(input_)
 
         # Unpad images to original dimensions
         restored = restored[:,:,:h,:w]
-        restored = restored.mean(dim=1, keepdim=True)
         
         psnr, ssim = compute_PSNR(restored, img_clean, data_range=trunc_max-trunc_min, trunc_min=trunc_min, trunc_max=trunc_max,
-                                 norm_range_max=3096, norm_range_min=-1024), \
+                                 norm_range_max=3072, norm_range_min=-1024), \
                      compute_SSIM(restored, img_clean, data_range=trunc_max-trunc_min, trunc_min=trunc_min, trunc_max=trunc_max,
-                                 norm_range_max=3096, norm_range_min=-1024)
+                                 norm_range_max=3072, norm_range_min=-1024)
 
         psnr_list.append(psnr); ssim_list.append(ssim)
         
