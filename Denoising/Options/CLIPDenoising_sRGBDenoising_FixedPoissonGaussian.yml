@@ -11,7 +11,7 @@ datasets:
     name: TrainSet
     type: Dataset_SyntheticDenoising
     dataroot_gt: /kaggle/input/datasets/leongxinying/div2k-dataset/DIV2K_train_HR
-    dataroot_lq: /kaggle/working/DIV2K_synthesis_srgbnoise_strict2/noisy
+    dataroot_lq: /kaggle/input/datasets/leongxinying/div2k-srgb-noisy-strict2
     geometric_augs: true
 
     filename_tmpl: '{}'
