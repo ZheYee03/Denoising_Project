@@ -17,6 +17,7 @@ Author: Shi Guo, 01/04/2019
 '''
 
 
+import argparse
 import cv2
 import glob
 import h5py
@@ -34,13 +35,16 @@ from basicsr.data.Demosaicing_malvar2004 import \
     demosaicing_CFA_Bayer_Malvar2004
 
 class ISP:
-    def __init__(self, curve_path='./'):
-        filename = os.path.join(curve_path, '/data0/cj/dataset/CBD_data/201_CRF_data.mat')
-        CRFs = scipy.io.loadmat(filename)
+    def __init__(self, curve_path='./', crf_data_path=None, inverse_crf_path=None):
+        if crf_data_path is None:
+            crf_data_path = os.path.join(curve_path, '201_CRF_data.mat')
+        if inverse_crf_path is None:
+            inverse_crf_path = os.path.join(curve_path, 'dorfCurvesInv.mat')
+
+        CRFs = scipy.io.loadmat(crf_data_path)
         self.I = CRFs['I']
         self.B = CRFs['B']
-        filename = os.path.join(curve_path, '/data0/cj/dataset/CBD_data/dorfCurvesInv.mat')
-        inverseCRFs = scipy.io.loadmat(filename)
+        inverseCRFs = scipy.io.loadmat(inverse_crf_path)
         self.I_inv = inverseCRFs['invI']
         self.B_inv = inverseCRFs['invB']
         self.xyz2cam_all = np.array([[1.0234,-0.2969,-0.2266,-0.5625,1.6328,-0.0469,-0.0703,0.2188,0.6406]
@@ -359,22 +363,67 @@ class ISP:
         
         return img_mosaic, img_mosaic_noise
 
-def save_files(i, clean_files,k):
-
-    noisy_Dir = '/data0/cj/dataset/DIV2K/DIV2K_synthesis_srgbnoise/noisy'
-
+def save_files(i, clean_files, noisy_dir, isp):
     clean_file = clean_files[i]
     clean_img = cv2.imread(clean_file)
 
     img = np.array(clean_img, dtype='uint8').astype('float') / 255.0
     img_rgb = isp.BGR2RGB(img)
     gt, noise = isp.cbdnet_noise_generate_srgb(img_rgb, is_strict=True)
-    cv2.imwrite(os.path.join(noisy_Dir, '{}'.format(clean_file.split('/')[-1])), (isp.RGB2BGR(noise)*255).round().astype(np.uint8))
+    cv2.imwrite(
+        os.path.join(noisy_dir, os.path.basename(clean_file)),
+        (isp.RGB2BGR(noise) * 255).round().astype(np.uint8),
+    )
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='Generate synthetic sRGB noisy DIV2K images.')
+    parser.add_argument(
+        '--clean_dir',
+        default='/kaggle/input/datasets/leongxinying/div2k-dataset/DIV2K_train_HR',
+        type=str,
+        help='Directory containing clean DIV2K PNG files.',
+    )
+    parser.add_argument(
+        '--noisy_dir',
+        default='/kaggle/working/DIV2K_synthesis_srgbnoise_strict2/noisy',
+        type=str,
+        help='Directory to save generated noisy PNG files.',
+    )
+    parser.add_argument(
+        '--crf_data_path',
+        type=str,
+        required=True,
+        help='Path to 201_CRF_data.mat.',
+    )
+    parser.add_argument(
+        '--inverse_crf_path',
+        type=str,
+        required=True,
+        help='Path to dorfCurvesInv.mat.',
+    )
+    parser.add_argument(
+        '--jobs',
+        type=int,
+        default=os.cpu_count() or 1,
+        help='Number of parallel workers for noisy image generation.',
+    )
+    return parser.parse_args()
 
 
 if __name__ == '__main__':
-    isp = ISP()
-    clean_files = sorted(glob.glob(os.path.join('/data0/cj/dataset/DIV2K/DIV2K_train_HR_sub', '*.png')))
-    Parallel(n_jobs=20)(delayed(save_files)(i, clean_files) for i in tqdm(range(len(clean_files))))
+    args = parse_args()
+
+    os.makedirs(args.noisy_dir, exist_ok=True)
+
+    isp = ISP(
+        crf_data_path=args.crf_data_path,
+        inverse_crf_path=args.inverse_crf_path,
+    )
+    clean_files = sorted(glob.glob(os.path.join(args.clean_dir, '*.png')))
+    Parallel(n_jobs=args.jobs)(
+        delayed(save_files)(i, clean_files, args.noisy_dir, isp)
+        for i in tqdm(range(len(clean_files)))
+    )
 
     

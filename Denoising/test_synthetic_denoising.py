@@ -30,12 +30,12 @@ import utils
 from basicsr.models.archs.CLIPDenoising_arch import CLIPDenoising
 from basicsr.models.archs.CLIPEncoder_util import ModifiedResNet
 
-DEFAULT_INPUT_DIR = '/kaggle/input/datasets/leongxinying/data-clipdenoise'
+DEFAULT_INPUT_DIR = '/kaggle/input/datasets/leongxinying/cbsd432-dataset'
 DATASET_PATHS = {
-    'CBSD68': '/kaggle/input/datasets/leongxinying/data-clipdenoise/cbsd68/cbsd68',
-    'McM': '/kaggle/input/datasets/leongxinying/data-clipdenoise/McM/McM',
-    'Kodak24': '/kaggle/input/datasets/leongxinying/data-clipdenoise/kodak24/kodak24',
-    'Urban100': '/kaggle/input/datasets/leongxinying/data-clipdenoise/urban100/urban100',
+    'CBSD68': '/kaggle/input/datasets/leongxinying/cbsd432-dataset/cbsd68/cbsd68',
+    'McM': '/kaggle/input/datasets/leongxinying/cbsd432-dataset/McM/McM',
+    'Kodak24': '/kaggle/input/datasets/leongxinying/cbsd432-dataset/kodak24/kodak24',
+    'Urban100': '/kaggle/input/datasets/leongxinying/cbsd432-dataset/urban100/urban100',
 }
 DEFAULT_CHECKPOINT_PATH = (
     '/kaggle/input/datasets/leongxinying/pretrained-syntheticdenoising/'

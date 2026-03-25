@@ -9,7 +9,7 @@ import torch
 from os import path as osp
 import os
 
-PROJECT_ROOT = '/kaggle/working/denoising-project'
+PROJECT_ROOT = osp.dirname(osp.dirname(osp.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
 if osp.exists(PROJECT_ROOT):
